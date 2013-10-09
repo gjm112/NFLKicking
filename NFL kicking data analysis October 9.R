@@ -12,7 +12,9 @@ tapply(kick.dat$good,kick.dat$year,mean)
 #Average distance by year
 tapply(kick.dat$yards,kick.dat$year,mean)
 #Boxplots of distance by year
-boxplot(kick.dat$yards~kick.dat$year)
+png("boxplot by year.png",w=1000,h=1000)
+boxplot(kick.dat$yards~kick.dat$year,ylab="Distance",xlab="Year",main="Distribution of Field Goal Attempts by Year")
+dev.off()
 #Just fixed effects
 summary(glm(good~yards,data=kick.dat,family="binomial"))
 summary(glm(good~I(yards^0.5),data=kick.dat,family="binomial"))#Lower AIC
@@ -61,13 +63,15 @@ pdist<-as.data.frame(pdist)
 names(pdist)<-c("y","x")
 aaa<-tapply(pdist$y,pdist$x,quantile,c(0.05,0.95))
 bbb<-do.call(rbind,aaa)
-#png("KickerAndYear.png")
-plot(c(17:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="blue",main="Kicker and year variability")
+png("KickerAndYearNOFEyear.png",h=1000,w=1000)
+plot(c(17:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="blue",main="Kicker and year variability",sub="Not Controlling for Year")
 points(c(17:60),bbb[,2],type="l",col="red")
 abline(h=seq(0,1,0.1),col="gray50",lty=3)
 legend(20,0.6,legend=c("95th percentile","5th percentile"),col=c("red","blue"),lwd=3)
-#dev.off()
+dev.off()
 
+
+#Final FINAL  model controlling for year and yards as well as random effects for players and player:year
 kickingMerYear<-glmer(good~I(yards^0.5)+year+(1|name)+(1|name:year),data=kick.dat,family="binomial")  
 b<-kickingMerYear
 #Fixed Effects
@@ -94,12 +98,48 @@ pdist<-as.data.frame(pdist)
 names(pdist)<-c("y","x")
 aaa<-tapply(pdist$y,pdist$x,quantile,c(0.05,0.95))
 bbb<-do.call(rbind,aaa)
-#png("KickerAndYearFEyear.png")
-plot(c(17:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="blue",main="Kicker and year variability")
+png("KickerAndYearFEyear.png",h=1000,w=1000)
+plot(c(17:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="blue",main="Kicker and year variability",sub="Controlling for Year")
 points(c(17:60),bbb[,2],type="l",col="red")
 abline(h=seq(0,1,0.1),col="gray50",lty=3)
 legend(20,0.6,legend=c("95th percentile","5th percentile"),col=c("red","blue"),lwd=3)
-#dev.off()
+dev.off()
+
+
+
+#Final FINAL  model controlling for year and yards as well as random effects for players and player:year
+kickingMerYear<-glmer(good~I(yards^0.5)+year+(1|name)+(1|name:year),data=kick.dat,family="binomial")  
+b<-kickingMerYear
+#Fixed Effects
+#Only fixed effects
+logitp<-fixef(b)%*%c(1,sqrt(40),1,0,0,0,0,0,0,0)
+p<-exp(logitp)/(1+exp(logitp))
+
+#Random Effects: Player ability held constant
+#40 Yards FG in 2010
+logitp<-fixef(b)%*%c(1,sqrt(40),1,0,0,0,0,0,0,0)
+p<-exp(logitp)/(1+exp(logitp))
+
+pdist<-function(dist){
+  logitp<-fixef(b)%*%c(1,sqrt(dist),1,0,0,0,0,0,0,0)+rnorm(1000,0,sqrt(VarCorr(b)[1][[1]][1]))+rnorm(1000,0,sqrt(VarCorr(b)[2][[1]][1]))
+  p<-exp(logitp)/(1+exp(logitp))
+  p
+}
+pdistList<-list()
+for (i in 17:60){
+  pdistList[[i]]<-cbind(pdist(i),i)
+}
+pdist<-do.call(rbind,pdistList)
+pdist<-as.data.frame(pdist)
+names(pdist)<-c("y","x")
+aaa<-tapply(pdist$y,pdist$x,quantile,c(0.05,0.95))
+bbb<-do.call(rbind,aaa)
+png("KickerAndYearFEyearVariabiltyBetweenKickers.png",h=1000,w=1000)
+plot(c(17:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="blue",main="Kicker Variability",sub="Controlling for Year")
+points(c(17:60),bbb[,2],type="l",col="red")
+abline(h=seq(0,1,0.1),col="gray50",lty=3)
+legend(20,0.6,legend=c("95th percentile","5th percentile"),col=c("red","blue"),lwd=3)
+dev.off()
 
 
 
@@ -116,7 +156,7 @@ pdist<-function(dist,year){
   p
 }
 pdistList<-list()
-for (year in 2003:2010){
+for (year in 2003:2011){
   pdistList[[year]]<-list()
 for (i in 30:60){
   pdistList[[year]][[i]]<-cbind(pdist(i,year),i)
@@ -128,21 +168,21 @@ pdist<-as.data.frame(pdist)
 names(pdist)<-c("y","x")
 aaa<-tapply(pdist$y,pdist$x,quantile,c(0.05,0.95))
 bbb<-do.call(rbind,aaa)
-#png("KickerAndYearFEyear.png")
-plot(c(30:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="red",main="Probabilty of average kicker making a field goal",lwd=5,sub="Kicker ability held constant")
+png("AllKickersbyYear.png",h=1000,w=1000)
+plot(c(30:60),bbb[,1],type="l",xlab="Distance of Kick",ylab="Probabilty of making the kick",col="red",main="Probabilty of average kicker making a field goal",lwd=3,sub="Kicker ability held constant")
 
-cols<-c("red","red","red","blue","blue","blue","blue")
-for (year in 2004:2010){
+cols<-c("red","red","red","blue","blue","blue","blue","blue")
+for (year in 2004:2011){
 pdist<-do.call(rbind,pdistList[[year]])
 pdist<-as.data.frame(pdist)
 names(pdist)<-c("y","x")
 aaa<-tapply(pdist$y,pdist$x,quantile,c(0.05,0.95))
 bbb<-do.call(rbind,aaa)
-points(c(30:60),bbb[,1],type="l",col=cols[year-2003],lwd=5)
+points(c(30:60),bbb[,1],type="l",col=cols[year-2003],lwd=3)
 }
 abline(h=seq(0,1,0.1),col="gray50",lty=3)
-legend(30,0.6,legend=c("2003-2006","2007-2010"),col=c("red","blue"),lwd=3)
-#dev.off()
+legend(30,0.6,legend=c("2003-2006","2007-2011"),col=c("red","blue"),lwd=3)
+dev.off()
 
 
 
